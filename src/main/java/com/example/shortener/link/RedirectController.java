@@ -22,7 +22,7 @@ public class RedirectController {
     private final ClickService clickService;
 
     @Operation(summary = "Redirect to the original URL", description = "Returns 302, 404 if unknown, 410 if expired. Records the click asynchronously.")
-    @GetMapping("/{code}")
+    @GetMapping("/{code:[A-Za-z0-9_-]+}")
     public ResponseEntity<Void> redirect(
             @PathVariable String code,
             @RequestHeader(value = HttpHeaders.REFERER, required = false) String referrer,

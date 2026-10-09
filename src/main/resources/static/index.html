@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>URL Shortener</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            --bg: #f5f6fa; --card: #ffffff; --text: #1d2433; --muted: #6b7385;
+            --border: #dfe3ec; --accent: #3b6df0; --accent-text: #ffffff;
+            --ok-bg: #e7f6ec; --ok-text: #17673a; --err-bg: #fdecea; --err-text: #a12a22;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #12151c; --card: #1b2030; --text: #e8ebf3; --muted: #98a1b8;
+                --border: #2c3348; --accent: #6b90ff; --accent-text: #0e1220;
+                --ok-bg: #153024; --ok-text: #7fdca4; --err-bg: #3a1a18; --err-text: #ff9d94;
+            }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
+        h1 { margin: 0 0 4px; font-size: 1.8rem; }
+        h2 { margin: 0 0 14px; font-size: 1.1rem; }
+        h3 { margin: 18px 0 6px; font-size: 0.95rem; color: var(--muted); }
+        .sub { margin: 0 0 24px; color: var(--muted); }
+        .card { background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 12px; }
+        input { display: block; width: 100%; margin-top: 4px; padding: 10px 12px; font-size: 1rem;
+            color: var(--text); background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; }
+        input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .row > label { flex: 1 1 200px; }
+        .inline { align-items: flex-end; }
+        .inline input { margin-top: 0; flex: 1 1 200px; }
+        button { padding: 10px 18px; font-size: 1rem; border: 0; border-radius: 8px;
+            background: var(--accent); color: var(--accent-text); cursor: pointer; }
+        button.secondary { background: transparent; color: var(--accent);
+            border: 1px solid var(--accent); padding: 6px 12px; font-size: 0.9rem; }
+        button:hover { opacity: 0.9; }
+        .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.95rem; }
+        .msg.ok { background: var(--ok-bg); color: var(--ok-text); }
+        .msg.error { background: var(--err-bg); color: var(--err-text); }
+        #result { margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        #shortLink { font-size: 1.15rem; font-weight: 600; color: var(--accent); word-break: break-all; }
+        .big { font-size: 1.4rem; margin: 14px 0 2px; }
+        .orig { margin: 0; color: var(--muted); font-size: 0.9rem; word-break: break-all; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        td { padding: 6px 0; border-bottom: 1px solid var(--border); }
+        td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+        ul { list-style: none; margin: 0; padding: 0; }
+        li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid var(--border); }
+        li .info { min-width: 0; }
+        li a { color: var(--accent); font-weight: 600; text-decoration: none; }
+        li .o { color: var(--muted); font-size: 0.85rem; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; }
+        .empty { color: var(--muted); font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>URL Shortener</h1>
+    <p class="sub">Shorten a link, then track its clicks.</p>
+
+    <section class="card">
+        <h2>Create a short link</h2>
+        <label>Long URL
+            <input id="url" type="text" placeholder="https://example.com/very/long/path">
+        </label>
+        <div class="row">
+            <label>Custom alias (optional)
+                <input id="alias" type="text" placeholder="my-link">
+            </label>
+            <label>Expires at (optional)
+                <input id="expires" type="datetime-local">
+            </label>
+        </div>
+        <button id="shorten">Shorten</button>
+        <div id="createMsg" class="msg" hidden></div>
+        <div id="result" hidden>
+            <a id="shortLink" target="_blank" rel="noopener"></a>
+            <button id="copy" class="secondary">Copy</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Click stats</h2>
+        <div class="row inline">
+            <input id="statsCode" type="text" placeholder="Short code, e.g. wiki">
+            <button id="loadStats">Load stats</button>
+        </div>
+        <div id="statsMsg" class="msg" hidden></div>
+        <div id="stats" hidden>
+            <p class="big"><strong id="totalClicks">0</strong> total clicks</p>
+            <p class="orig" id="statsOrig"></p>
+            <h3>Clicks per day</h3>
+            <table><tbody id="daysBody"></tbody></table>
+            <h3>Top referrers</h3>
+            <table><tbody id="refBody"></tbody></table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Recent links</h2>
+        <ul id="recent"></ul>
+    </section>
+</main>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const RECENT_KEY = "recentLinks";
+
+    function showMsg(el, text, isError) {
+        el.textContent = text;
+        el.className = "msg " + (isError ? "error" : "ok");
+        el.hidden = false;
+    }
+
+    async function api(path, options) {
+        const res = await fetch(path, options);
+        let body = null;
+        try { body = await res.json(); } catch (e) { /* no JSON body */ }
+        if (!res.ok) {
+            let msg = (body && body.message) || ("Request failed (" + res.status + ")");
+            if (body && body.fieldErrors) {
+                const details = Object.entries(body.fieldErrors)
+                    .map(([field, m]) => field + ": " + m).join("; ");
+                if (details) msg += " (" + details + ")";
+            }
+            throw new Error(msg);
+        }
+        return body;
+    }
+
+    // ---- recent links (stored in this browser only) ----
+    function loadRecent() {
+        try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; }
+        catch (e) { return []; }
+    }
+
+    function saveRecent(link) {
+        try {
+            const list = loadRecent().filter((l) => l.code !== link.code);
+            list.unshift({ code: link.code, shortUrl: link.shortUrl, originalUrl: link.originalUrl });
+            localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 10)));
+        } catch (e) { /* storage unavailable */ }
+    }
+
+    function renderRecent() {
+        const ul = $("recent");
+        ul.replaceChildren();
+        const list = loadRecent();
+        if (list.length === 0) {
+            const li = document.createElement("li");
+            li.className = "empty";
+            li.textContent = "No links yet. Create one above.";
+            ul.appendChild(li);
+            return;
+        }
+        list.forEach((l) => {
+            const li = document.createElement("li");
+            const info = document.createElement("div");
+            info.className = "info";
+            const a = document.createElement("a");
+            a.href = l.shortUrl;
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.textContent = l.shortUrl;
+            const o = document.createElement("div");
+            o.className = "o";
+            o.textContent = l.originalUrl;
+            info.append(a, o);
+            const btn = document.createElement("button");
+            btn.className = "secondary";
+            btn.textContent = "Stats";
+            btn.addEventListener("click", () => {
+                $("statsCode").value = l.code;
+                loadStats();
+            });
+            li.append(info, btn);
+            ul.appendChild(li);
+        });
+    }
+
+    // ---- create ----
+    async function createLink() {
+        const payload = { url: $("url").value.trim() };
+        const alias = $("alias").value.trim();
+        if (alias) payload.alias = alias;
+        if ($("expires").value) payload.expiresAt = new Date($("expires").value).toISOString();
+
+        $("result").hidden = true;
+        try {
+            const link = await api("/api/links", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            showMsg($("createMsg"), "Short link created.", false);
+            $("shortLink").href = link.shortUrl;
+            $("shortLink").textContent = link.shortUrl;
+            $("result").hidden = false;
+            saveRecent(link);
+            renderRecent();
+        } catch (err) {
+            showMsg($("createMsg"), err.message, true);
+        }
+    }
+
+    // ---- stats ----
+    function fillTable(tbodyId, rows, emptyText) {
+        const tbody = $(tbodyId);
+        tbody.replaceChildren();
+        if (rows.length === 0) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 2;
+            td.className = "empty";
+            td.textContent = emptyText;
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+        }
+        rows.forEach(([label, value]) => {
+            const tr = document.createElement("tr");
+            const a = document.createElement("td");
+            const b = document.createElement("td");
+            a.textContent = label;       // textContent keeps user-supplied referrers safe
+            b.textContent = value;
+            tr.append(a, b);
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function loadStats() {
+        const code = $("statsCode").value.trim();
+        $("stats").hidden = true;
+        if (!code) {
+            showMsg($("statsMsg"), "Enter a short code first.", true);
+            return;
+        }
+        try {
+            const s = await api("/api/links/" + encodeURIComponent(code) + "/stats");
+            $("statsMsg").hidden = true;
+            $("totalClicks").textContent = s.totalClicks;
+            $("statsOrig").textContent = "Points to: " + s.originalUrl;
+            fillTable("daysBody", s.clicksPerDay.map((d) => [d.date, d.clicks]), "No clicks yet");
+            fillTable("refBody", s.topReferrers.map((r) => [r.referrer, r.clicks]), "No clicks yet");
+            $("stats").hidden = false;
+        } catch (err) {
+            showMsg($("statsMsg"), err.message, true);
+        }
+    }
+
+    // ---- wiring ----
+    $("shorten").addEventListener("click", createLink);
+    $("loadStats").addEventListener("click", loadStats);
+    $("statsCode").addEventListener("keydown", (e) => { if (e.key === "Enter") loadStats(); });
+    $("url").addEventListener("keydown", (e) => { if (e.key === "Enter") createLink(); });
+    $("copy").addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText($("shortLink").textContent);
+            $("copy").textContent = "Copied!";
+            setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+        } catch (e) {
+            $("copy").textContent = "Copy failed";
+        }
+    });
+    renderRecent();
+</script>
+</body>
+</html>
