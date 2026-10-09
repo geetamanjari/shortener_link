@@ -4,7 +4,7 @@ A Java and Spring Boot application that shortens URLs, redirects visitors, and r
 click analytics without slowing down the redirect. It includes a REST API, a simple
 web UI, PostgreSQL persistence, and Redis caching.
 
-![Web UI](docs/ui.png)
+![Web UI](docs/ui.jpg)
 
 ## Features
 
@@ -69,7 +69,7 @@ docker compose exec db psql -U shortener -d shortener -c "select code, original_
 
 ## API
 
-![Swagger UI](docs/swagger.png)
+![Swagger UI](docs/swagger.jpg)
 
 | Method | Path | Description |
 |---|---|---|
